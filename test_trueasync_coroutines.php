@@ -15,17 +15,17 @@ $progress = ['sent' => 0, 'received' => 0];
 function renderProgress(array &$progress, float $startTime): void
 {
     $elapsed = microtime(true) - $startTime;
-    $rate    = $elapsed > 0 ? (int) round(max($progress['sent'], $progress['received']) / $elapsed) : 0;
 
-    $makeBar = function (int $current): string {
+    $makeBar = function (int $current) use ($elapsed): string {
         $pct    = min($current / MSG_COUNT, 1.0);
         $filled = (int) round($pct * BAR_WIDTH);
         $bar    = str_repeat('█', $filled) . str_repeat('░', BAR_WIDTH - $filled);
         $pctStr = str_pad((int) round($pct * 100), 3) . '%';
-        return "[$bar] $pctStr " . str_pad((string)$current, 4) . '/' . MSG_COUNT;
+        $rate   = $elapsed > 0 ? (int) round($current / $elapsed) : 0;
+        return "[$bar] $pctStr " . str_pad((string)$current, 4) . '/' . MSG_COUNT . " ⚡{$rate}";
     };
 
-    echo "\r📤 " . $makeBar($progress['sent']) . "  │  📥 " . $makeBar($progress['received']) . "  ⚡ {$rate} msg/s   ";
+    echo "\r📤 " . $makeBar($progress['sent']) . "  │  📥 " . $makeBar($progress['received']) . " msg/s   ";
 }
 
 $startTime = microtime(true);
