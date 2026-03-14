@@ -8,49 +8,61 @@ use function Async\await;
 
 const QUEUE     = 'trueasync_coroutines_test';
 const MSG_COUNT = 1000;
+const BAR_WIDTH = 30;
+
+function progressBar(string $icon, string $label, int $current, int $total, float $startTime): void
+{
+    $pct      = $current / $total;
+    $filled   = (int) round($pct * BAR_WIDTH);
+    $empty    = BAR_WIDTH - $filled;
+    $bar      = str_repeat('█', $filled) . str_repeat('░', $empty);
+    $elapsed  = microtime(true) - $startTime;
+    $rate     = $elapsed > 0 ? (int) round($current / $elapsed) : 0;
+    $percent  = str_pad((int) round($pct * 100), 3, ' ', STR_PAD_LEFT) . '%';
+
+    echo "\r$icon  $label  [$bar] $percent  $current/$total  ⚡ {$rate} msg/s   ";
+}
 
 $startTime = microtime(true);
 
-// Producer: sends MSG_COUNT messages
-$producer = spawn(function () {
+echo "🐇 TrueAsync × RabbitMQ — concurrent coroutines demo\n";
+echo str_repeat('─', 60) . "\n";
+
+// Producer
+$producer = spawn(function () use ($startTime) {
     $conn = new AMQPTrueAsyncConnection('localhost', 5672, 'guest', 'guest', '/');
     $ch   = $conn->channel();
     $ch->queue_declare(QUEUE, false, false, false, true);
     $ch->confirm_select();
 
-    $sent = 0;
     for ($i = 1; $i <= MSG_COUNT; $i++) {
         $ch->basic_publish(new AMQPMessage("message #$i"), '', QUEUE);
-        $sent++;
-        if ($sent % 100 === 0) {
-            echo "\r[producer] sent:     $sent / " . MSG_COUNT;
-        }
+        progressBar('📤', 'Sending  ', $i, MSG_COUNT, $startTime);
     }
 
     $ch->wait_for_pending_acks(5);
-    echo "\r[producer] sent:     $sent / " . MSG_COUNT . " — done!       \n";
+    progressBar('📤', 'Sending  ', MSG_COUNT, MSG_COUNT, $startTime);
+    echo "\n";
 
     $ch->close();
     $conn->close();
 
-    return $sent;
+    return MSG_COUNT;
 });
 
-// Consumer: receives MSG_COUNT messages
-$consumer = spawn(function () {
+// Consumer
+$consumer = spawn(function () use ($startTime) {
     $conn     = new AMQPTrueAsyncConnection('localhost', 5672, 'guest', 'guest', '/');
     $ch       = $conn->channel();
     $ch->queue_declare(QUEUE, false, false, false, true);
 
     $received = 0;
 
-    $ch->basic_consume(QUEUE, '', false, true, false, false, function ($msg) use (&$received, $ch) {
+    $ch->basic_consume(QUEUE, '', false, true, false, false, function ($msg) use (&$received, $ch, $startTime) {
         $received++;
-        if ($received % 100 === 0) {
-            echo "\r[consumer] received: $received / " . MSG_COUNT;
-        }
+        progressBar('📥', 'Receiving', $received, MSG_COUNT, $startTime);
         if ($received >= MSG_COUNT) {
-            echo "\r[consumer] received: $received / " . MSG_COUNT . " — done!       \n";
+            echo "\n";
             $ch->basic_cancel($msg->delivery_info['consumer_tag']);
         }
     });
@@ -65,14 +77,14 @@ $consumer = spawn(function () {
     return $received;
 });
 
-$sent     = await($producer);
+await($producer);
 $received = await($consumer);
 
 $elapsed = round(microtime(true) - $startTime, 2);
 $rps     = round(MSG_COUNT / $elapsed);
 
-echo "\n";
-echo "Sent:     $sent\n";
-echo "Received: $received\n";
-echo "Time:     {$elapsed}s\n";
-echo "Speed:    ~{$rps} msg/s\n";
+echo str_repeat('─', 60) . "\n";
+echo "✅  Sent:     " . MSG_COUNT . "\n";
+echo "✅  Received: $received\n";
+echo "⏱️   Time:     {$elapsed}s\n";
+echo "⚡  Speed:    ~{$rps} msg/s\n";
