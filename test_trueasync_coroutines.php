@@ -41,7 +41,6 @@ $producer = spawn(function () use (&$progress, $startTime) {
 
     for ($i = 1; $i <= MSG_COUNT; $i++) {
         $ch->basic_publish(new AMQPMessage("message #$i"), '', QUEUE);
-        Async\delay(rand(1, 50));
         $progress['sent'] = $i;
         renderProgress($progress, $startTime);
     }
@@ -63,7 +62,6 @@ $consumer = spawn(function () use (&$progress, $startTime) {
     $ch->basic_consume(QUEUE, '', false, true, false, false, function ($msg) use (&$received, &$progress, $ch, $startTime) {
         $received++;
         $progress['received'] = $received;
-        Async\delay(rand(1, 50));
         renderProgress($progress, $startTime);
         if ($received >= MSG_COUNT) {
             echo "\n";
