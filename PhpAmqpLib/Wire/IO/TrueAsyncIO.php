@@ -261,7 +261,7 @@ class TrueAsyncIO extends AbstractIO
             fwrite($this->sock, $data);
             $this->throwOnError();
         } catch (\ErrorException $e) {
-            $code      = $this->last_error['errno'];
+            $code      = (int) ($this->last_error['errno'] ?? 0);
             $constants = SocketConstants::getInstance();
 
             switch ($code) {
@@ -285,7 +285,7 @@ class TrueAsyncIO extends AbstractIO
         $this->last_write = microtime(true);
     }
 
-    public function error_handler($errno, $errstr, $errfile, $errline, $errcontext = null)
+    public function error_handler($errno, $errstr, $errfile, $errline): void
     {
         $code      = $this->extractErrorCode($errstr);
         $constants = SocketConstants::getInstance();

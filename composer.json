@@ -59,5 +59,11 @@
         "branch-alias": {
             "dev-master": "3.0-dev"
         }
+    },
+    "config": {
+        "audit": {
+            "abandoned": "ignore",
+            "ignore": ["{\"PKSA-4dtf-ym9h-t41j\": \"ignored for local dev\"}"]
+        }
     }
 }
